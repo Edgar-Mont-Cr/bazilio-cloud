@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+programas/*.mp3
+programas/*.wav
+programas/*.midi
+programas/*.pdf
+programas/*.ly
