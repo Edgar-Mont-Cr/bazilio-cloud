@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bazilio IDE - Partitura en PDF y Audio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <nav class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-lg"><i class="fa-solid fa-music"></i></div>
+            <span class="text-xl font-bold tracking-wide">Bazilio Studio</span>
+        </div>
+        <div class="flex space-x-1">
+            <a href="index.html" class="text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-code mr-1"></i> Editor</a>
+            <a href="analizador.html" class="text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-network-wired mr-1"></i> Analizador & AST</a>
+            <a href="reproductor.html" class="bg-slate-700 text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-play-circle mr-1"></i> Partitura & Audio</a>
+            <a href="documentacion.html" class="text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-book mr-1"></i> Manual Bazilio</a>
+        </div>
+    </nav>
+
+    <div class="flex-1 p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        <!-- Barra de Control -->
+        <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4 shadow-lg">
+            <div>
+                <h1 class="text-xl font-bold text-white">Generador y Reproductor de Partitura</h1>
+                <p class="text-slate-400 text-sm">Compila tu código Bazilio para generar instantáneamente el PDF, MP3 y MIDI</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <input type="text" id="nombreArchivo" value="mi_partitura.bzl" class="bg-slate-900 border border-slate-700 text-xs px-3 py-2.5 rounded-lg text-slate-200 font-mono focus:outline-none">
+                <button id="btnGenerar" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-900/40 text-sm">
+                    <i class="fa-solid fa-gear"></i> Compilar y Generar Salidas
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel Principal: Visor PDF y Reproductor de Audio -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
+            <!-- Visor de Partitura PDF -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col shadow-inner h-[600px]">
+                <h2 class="font-bold text-sm text-indigo-400 mb-3 flex items-center justify-between">
+                    <span><i class="fa-solid fa-file-pdf mr-2"></i> Partitura en PDF (LilyPond)</span>
+                    <a id="downloadPdf" href="#" target="_blank" class="text-xs bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-slate-300 hidden"><i class="fa-solid fa-download mr-1"></i> Descargar PDF</a>
+                </h2>
+                <div class="flex-1 bg-slate-900 rounded-lg border border-slate-800 overflow-hidden flex items-center justify-center">
+                    <iframe id="pdfViewer" src="" class="w-full h-full border-0 hidden"></iframe>
+                    <div id="pdfPlaceholder" class="text-slate-500 text-sm italic text-center p-6">
+                        Haz clic en "Compilar y Generar Salidas" para renderizar el documento PDF de la partitura.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reproductor de Audio y Enlaces -->
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col gap-4 shadow-inner h-[600px]">
+                <h2 class="font-bold text-sm text-emerald-400 mb-1"><i class="fa-solid fa-headphones mr-2"></i> Reproductor de Audio (MP3 / MIDI)</h2>
+                
+                <div class="bg-slate-900 p-6 rounded-lg border border-slate-800 flex flex-col items-center justify-center gap-6 my-auto">
+                    <div class="text-indigo-300 font-mono text-sm text-center" id="estadoAudio">Esperando compilación...</div>
+                    
+                    <!-- Reproductor HTML5 nativo para el MP3 -->
+                    <audio id="audioPlayer" controls class="w-full hidden shadow-md"></audio>
+
+                    <div id="descargasArchivos" class="flex flex-wrap gap-3 justify-center pt-4 border-t border-slate-800 w-full hidden">
+                        <a id="linkMp3" href="#" download class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-xs font-semibold transition"><i class="fa-solid fa-file-audio mr-1.5 text-indigo-400"></i> Descargar .mp3</a>
+                        <a id="linkMidi" href="#" download class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-xs font-semibold transition"><i class="fa-solid fa-file-lines mr-1.5 text-amber-400"></i> Descargar .midi</a>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 p-4 rounded-lg border border-slate-800">
+                    <h3 class="font-bold text-xs text-slate-400 uppercase tracking-wider mb-2"><i class="fa-solid fa-terminal mr-1"></i> Consola del Compilador</h3>
+                    <div id="consoleLog" class="font-mono text-xs text-slate-400 h-24 overflow-y-auto space-y-1">
+                        > Listo para compilar código Bazilio.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const btnGenerar = document.getElementById('btnGenerar');
+        const pdfViewer = document.getElementById('pdfViewer');
+        const pdfPlaceholder = document.getElementById('pdfPlaceholder');
+        const downloadPdf = document.getElementById('downloadPdf');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const estadoAudio = document.getElementById('estadoAudio');
+        const linkMp3 = document.getElementById('linkMp3');
+        const linkMidi = document.getElementById('linkMidi');
+        const descargasArchivos = document.getElementById('descargasArchivos');
+        const consoleLog = document.getElementById('consoleLog');
+        const inputNombre = document.getElementById('nombreArchivo');
+
+        btnGenerar.addEventListener('click', async () => {
+            const codigo = localStorage.getItem('bazilio_code') || '';
+            const nombre = inputNombre.value.trim() || 'programa.bzl';
+
+            log('Compilando partitura y generando salidas multimedia...');
+            estadoAudio.textContent = 'Procesando con LilyPond y FFmpeg...';
+
+            try {
+                const response = await fetch('/api/compilar-generar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo, nombre })
+                });
+
+                const data = await response.json();
+
+                if (data.exito) {
+                    log('¡Archivos generados con éxito en la carpeta programas/!');
+                    
+                    // Mostrar PDF en el visor
+                    pdfViewer.src = data.pdf;
+                    pdfViewer.classList.remove('hidden');
+                    pdfPlaceholder.classList.add('hidden');
+                    downloadPdf.href = data.pdf;
+                    downloadPdf.classList.remove('hidden');
+
+                    // Configurar reproductor de audio MP3
+                    audioPlayer.src = data.mp3;
+                    audioPlayer.classList.remove('hidden');
+                    estadoAudio.textContent = 'Audio listo para reproducir';
+
+                    // Enlaces de descarga
+                    linkMp3.href = data.mp3;
+                    linkMidi.href = data.midi;
+                    descargasArchivos.classList.remove('hidden');
+
+                    log(`Archivos creados: ${data.archivos.join(', ')}`);
+                } else {
+                    log(`Error: ${data.error}`);
+                    estadoAudio.textContent = 'Error en la compilación';
+                }
+            } catch (err) {
+                log('Error de conexión con el servidor backend.');
+                estadoAudio.textContent = 'Error de conexión';
+            }
+        });
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.textContent = `> ${msg}`;
+            consoleLog.appendChild(div);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+        }
+    </script>
+</body>
+</html>

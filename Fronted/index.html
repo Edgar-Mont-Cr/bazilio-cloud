@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intérprete Bazilio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-6 font-sans">
+
+    <div class="max-w-2xl w-full flex flex-col items-center space-y-6">
+        
+        <h1 class="text-3xl font-bold tracking-wide text-slate-200">Intérprete Bazilio</h1>
+        
+        <div class="w-full flex flex-col space-y-2">
+            <label for="codeEditor" class="text-sm text-slate-400">Ingresa la secuencia de notas separadas por espacios (ej. A5 E5 C5 A4):</label>
+            <textarea id="codeEditor" rows="6" spellcheck="false" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-4 font-mono text-sm text-slate-200 focus:outline-none focus:border-slate-500 shadow-inner resize-none leading-relaxed" placeholder="A5 E5 C5 A4..."></textarea>
+        </div>
+
+        <!-- Botón Verde de Conversión -->
+        <button id="btnGenerar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-6 rounded-lg transition shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 cursor-pointer">
+            Convertir a Audio
+        </button>
+
+        <!-- Mensaje de Estado / Error -->
+        <div id="mensajeEstado" class="text-xs text-rose-400 italic text-center h-6 font-mono"></div>
+
+        <!-- Panel de Resultados (Audio y PDF) -->
+        <div id="reproductorContainer" class="w-full bg-slate-900 border border-slate-800 p-4 rounded-lg hidden flex flex-col items-center gap-3 shadow-md">
+            <span class="text-xs text-emerald-400 font-semibold"><i class="fa-solid fa-check-circle mr-1"></i> ¡Audio y partitura generados con éxito!</span>
+            <audio id="audioPlayer" controls class="w-full"></audio>
+            <div class="flex gap-6 text-xs pt-2">
+                <a id="linkPdf" href="#" target="_blank" class="text-indigo-400 hover:underline"><i class="fa-solid fa-file-pdf mr-1"></i> Ver Partitura PDF</a>
+                <a id="linkMidi" href="#" download class="text-amber-400 hover:underline"><i class="fa-solid fa-file-lines mr-1"></i> Descargar MIDI</a>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const editor = document.getElementById('codeEditor');
+        const btnGenerar = document.getElementById('btnGenerar');
+        const mensajeEstado = document.getElementById('mensajeEstado');
+        const reproductorContainer = document.getElementById('reproductorContainer');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const linkPdf = document.getElementById('linkPdf');
+        const linkMidi = document.getElementById('linkMidi');
+
+        btnGenerar.addEventListener('click', async () => {
+            const codigo = editor.value.trim();
+            if (!codigo) {
+                mensajeEstado.textContent = "Por favor ingresa una secuencia de notas.";
+                return;
+            }
+
+            mensajeEstado.textContent = "Procesando partitura...";
+            mensajeEstado.className = "text-xs text-amber-400 italic text-center h-6 font-mono";
+            reproductorContainer.classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/compilar-generar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo, nombre: 'partitura_usuario.bzl' })
+                });
+
+                const data = await response.json();
+
+                if (data.exito) {
+                    mensajeEstado.textContent = "";
+                    audioPlayer.src = data.mp3 + "?t=" + new Date().getTime();
+                    linkPdf.href = data.pdf;
+                    linkMidi.href = data.midi;
+                    reproductorContainer.classList.remove('hidden');
+                } else {
+                    mensajeEstado.textContent = data.error;
+                    mensajeEstado.className = "text-xs text-rose-400 italic text-center h-6 font-mono";
+                }
+            } catch (err) {
+                mensajeEstado.textContent = "Error de conexión con el servidor.";
+                mensajeEstado.className = "text-xs text-rose-400 italic text-center h-6 font-mono";
+            }
+        });
+    </script>
+</body>
+</html>

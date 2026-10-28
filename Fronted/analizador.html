@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bazilio IDE - Analizador Léxico y Sintáctico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <nav class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-lg"><i class="fa-solid fa-music"></i></div>
+            <span class="text-xl font-bold tracking-wide">Bazilio Studio</span>
+        </div>
+        <div class="flex space-x-1">
+            <a href="index.html" class="text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-code mr-1"></i> Editor</a>
+            <a href="analizador.html" class="bg-slate-700 text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-network-wired mr-1"></i> Analizador & AST</a>
+            <a href="reproductor.html" class="text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-play-circle mr-1"></i> Partitura & Audio</a>
+            <a href="documentacion.html" class="text-slate-300 hover:bg-slate-700 hover:text-white px-4 py-2 rounded-md text-sm font-medium"><i class="fa-solid fa-book mr-1"></i> Manual Bazilio</a>
+        </div>
+    </nav>
+
+    <div class="flex-1 p-6 max-w-7xl mx-auto w-full flex flex-col gap-6">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold">Inspección Léxica y Sintáctica</h1>
+                <p class="text-slate-400 text-sm">Simulación basada en los analizadores de ANTLR4 (`BazilioLexer` y `BazilioParser`)</p>
+            </div>
+            <a href="index.html" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm transition flex items-center gap-2"><i class="fa-solid fa-arrow-left"></i> Volver al Editor</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col shadow-inner">
+                <h2 class="font-bold text-sm text-indigo-400 mb-3"><i class="fa-solid fa-list-ol mr-2"></i> Flujo de Tokens Reconocidos</h2>
+                <div class="flex-1 overflow-y-auto max-h-[500px] border border-slate-900 rounded-lg">
+                    <table class="w-full text-left font-mono text-xs">
+                        <thead class="bg-slate-900 text-slate-400 border-b border-slate-800 sticky top-0">
+                            <tr>
+                                <th class="p-3">Tipo de Token</th>
+                                <th class="p-3">Lexema</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tokenTable" class="divide-y divide-slate-900"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col shadow-inner">
+                <h2 class="font-bold text-sm text-emerald-400 mb-3"><i class="fa-solid fa-tree mr-2"></i> Árbol de Derivación (AST)</h2>
+                <pre id="astOutput" class="flex-1 bg-slate-900 p-4 rounded-lg font-mono text-xs text-slate-300 overflow-auto max-h-[500px] leading-relaxed border border-slate-800"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const code = localStorage.getItem('bazilio_code') || '';
+        const tokenTable = document.getElementById('tokenTable');
+        const astOutput = document.getElementById('astOutput');
+
+        function analizarCodigo() {
+            tokenTable.innerHTML = '';
+            const lines = code.split('\n');
+            let astLines = ["(programa"];
+
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('###') || trimmed.startsWith('~~~')) return;
+
+                const tokens = trimmed.match(/\|:|:\.|\(:[)]|<:?>|<w>|<-|<<|8<|#|\{|\}|\(|\)|[A-G][0-8]?|[0-9]+|[a-z][a-zA-Z0-9_]*|[A-Z][a-zA-Z0-9_]*|"[^"]*"/g) || [];
+                
+                tokens.forEach(token => {
+                    let type = 'LITERAL';
+                    if (token === '|:' || token === ':|') type = 'BLOQUE_DELIM';
+                    else if (token === '<w>') type = 'ESCRIBE';
+                    else if (token === '<-') type = 'ASIGNA';
+                    else if (token === '(:)' || token === '<:>') type = 'TOCA';
+                    else if (token === '<<') type = 'AGREGA';
+                    else if (token === '8<') type = 'CORTA';
+                    else if (token === '#') type = 'LONG';
+                    else if (/^[A-G][0-8]?$/.test(token)) type = 'NOTA';
+                    else if (/^[0-9]+$/.test(token)) type = 'ENTERO';
+                    else if (/^[A-Z]/.test(token)) type = 'PROC_ID';
+                    else if (/^[a-z]/.test(token)) type = 'VAR';
+                    else if (token.startsWith('"')) type = 'TEXTO';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td class="p-3 text-indigo-300 font-bold">${type}</td><td class="p-3 text-slate-200">${token}</td>`;
+                    tokenTable.appendChild(tr);
+                });
+
+                if (trimmed.includes('|:')) {
+                    const procName = trimmed.split('|:')[0].trim();
+                    astLines.push(`  (procedimiento ${procName}`);
+                } else if (trimmed === ':|') {
+                    astLines.push(`  )`);
+                } else {
+                    astLines.push(`    (instruccion ${trimmed})`);
+                }
+            });
+
+            astLines.push(")");
+            astOutput.textContent = astLines.join('\n');
+        }
+
+        analizarCodigo();
+    </script>
+</body>
+</html>
